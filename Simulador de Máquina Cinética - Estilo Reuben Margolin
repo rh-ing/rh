@@ -1,0 +1,224 @@
+// Simulador de Máquina Cinética - Estilo Reuben Margolin
+
+let grid = [];
+let cols = 40;
+let rows = 30;
+let spacing = 15;
+let time = 0;
+let waveSpeed = 0.02;
+let amplitude = 80;
+let frequency = 0.05;
+
+// Controles
+let showConnections = true;
+let waveType = 'sine';
+let colorMode = 'gradient';
+
+function setup() {
+  createCanvas(800, 600);
+  
+  // Crear grid de puntos
+  for (let i = 0; i < cols; i++) {
+    grid[i] = [];
+    for (let j = 0; j < rows; j++) {
+      let x = (width - (cols-1) * spacing) / 2 + i * spacing;
+      let y = (height - (rows-1) * spacing) / 2 + j * spacing;
+      
+      grid[i][j] = {
+        baseX: x,
+        baseY: y,
+        x: x,
+        y: y,
+        z: 0
+      };
+    }
+  }
+  
+  // Crear controles de interfaz
+  createControls();
+}
+
+function draw() {
+  background(15, 15, 25);
+  
+  // Actualizar posiciones con ondas
+  updateWave();
+  
+  // Dibujar conexiones
+  if (showConnections) {
+    drawConnections();
+  }
+  
+  // Dibujar puntos
+  drawPoints();
+  
+  // Actualizar tiempo
+  time += waveSpeed;
+  
+  // Mostrar información
+  displayInfo();
+}
+
+function updateWave() {
+  for (let i = 0; i < cols; i++) {
+    for (let j = 0; j < rows; j++) {
+      let point = grid[i][j];
+      
+      // Diferentes tipos de ondas
+      let wave1, wave2;
+      
+      if (waveType === 'sine') {
+        wave1 = sin(i * frequency + time) * amplitude;
+        wave2 = sin(j * frequency + time * 1.2) * amplitude * 0.7;
+      } else if (waveType === 'circular') {
+        let centerX = cols / 2;
+        let centerY = rows / 2;
+        let distance = dist(i, j, centerX, centerY);
+        wave1 = sin(distance * frequency * 2 + time) * amplitude;
+        wave2 = cos(distance * frequency * 1.5 + time * 0.8) * amplitude * 0.5;
+      } else if (waveType === 'ripple') {
+        let centerX = cols / 2;
+        let centerY = rows / 2;
+        let distance = dist(i, j, centerX, centerY);
+        wave1 = sin(distance * frequency * 3 - time * 2) * amplitude * (1 / (distance * 0.1 + 1));
+        wave2 = 0;
+      } else if (waveType === 'complex') {
+        wave1 = sin(i * frequency + time) * cos(j * frequency * 0.7 + time * 1.5) * amplitude;
+        wave2 = cos(i * frequency * 1.3 + time * 0.8) * sin(j * frequency + time) * amplitude * 0.6;
+      }
+      
+      // Aplicar desplazamiento vertical (efecto 3D)
+      point.z = wave1 + wave2;
+      point.y = point.baseY + point.z * 0.3; // Proyección pseudo-3D
+      
+      // Ligero desplazamiento horizontal para efecto más dinámico
+      point.x = point.baseX + sin(i * frequency * 2 + time) * 5;
+    }
+  }
+}
+
+function drawConnections() {
+  stroke(80, 120, 200, 100);
+  strokeWeight(0.5);
+  
+  // Conexiones horizontales
+  for (let i = 0; i < cols - 1; i++) {
+    for (let j = 0; j < rows; j++) {
+      let p1 = grid[i][j];
+      let p2 = grid[i + 1][j];
+      line(p1.x, p1.y, p2.x, p2.y);
+    }
+  }
+  
+  // Conexiones verticales
+  for (let i = 0; i < cols; i++) {
+    for (let j = 0; j < rows - 1; j++) {
+      let p1 = grid[i][j];
+      let p2 = grid[i][j + 1];
+      line(p1.x, p1.y, p2.x, p2.y);
+    }
+  }
+}
+
+function drawPoints() {
+  noStroke();
+  
+  for (let i = 0; i < cols; i++) {
+    for (let j = 0; j < rows; j++) {
+      let point = grid[i][j];
+      
+      // Colores basados en altura/posición
+      let r, g, b, size;
+      
+      if (colorMode === 'gradient') {
+        let heightFactor = map(point.z, -amplitude * 2, amplitude * 2, 0, 1);
+        r = lerp(50, 255, heightFactor);
+        g = lerp(100, 200, abs(sin(heightFactor * PI)));
+        b = lerp(200, 100, heightFactor);
+        size = map(abs(point.z), 0, amplitude * 2, 2, 8);
+      } else if (colorMode === 'rainbow') {
+        let hue = map(point.z + time * 50, -amplitude * 2, amplitude * 2, 0, 360) % 360;
+        colorMode(HSB, 360, 100, 100);
+        fill(hue, 80, 90);
+        colorMode(RGB, 255);
+        size = 4;
+      } else if (colorMode === 'monochrome') {
+        let brightness = map(abs(point.z), 0, amplitude * 2, 50, 255);
+        r = g = b = brightness;
+        size = map(abs(point.z), 0, amplitude * 2, 2, 6);
+      }
+      
+      fill(r, g, b, 200);
+      ellipse(point.x, point.y, size, size);
+      
+      // Efecto de brillo en puntos altos
+      if (abs(point.z) > amplitude * 0.7) {
+        fill(255, 255, 255, 100);
+        ellipse(point.x, point.y, size * 0.6, size * 0.6);
+      }
+    }
+  }
+}
+
+function createControls() {
+  // Los controles se manejan con teclas
+}
+
+function displayInfo() {
+  fill(255, 200);
+  textAlign(LEFT, TOP);
+  textSize(14);
+  text("Simulador Máquina Cinética", 20, 20);
+  
+  textSize(12);
+  text("Controles:", 20, 45);
+  text("1-4: Cambiar tipo de onda", 20, 65);
+  text("C: Alternar conexiones", 20, 85);
+  text("V: Cambiar colores", 20, 105);
+  text("↑↓: Amplitud, ←→: Velocidad", 20, 125);
+  text("R: Reiniciar", 20, 145);
+  
+  textAlign(RIGHT, TOP);
+  text(`Tipo: ${waveType}`, width - 20, 45);
+  text(`Conexiones: ${showConnections ? 'ON' : 'OFF'}`, width - 20, 65);
+  text(`Colores: ${colorMode}`, width - 20, 85);
+}
+
+function keyPressed() {
+  // Cambiar tipos de onda
+  if (key === '1') waveType = 'sine';
+  if (key === '2') waveType = 'circular';
+  if (key === '3') waveType = 'ripple';
+  if (key === '4') waveType = 'complex';
+  
+  // Alternar conexiones
+  if (key === 'c' || key === 'C') {
+    showConnections = !showConnections;
+  }
+  
+  // Cambiar modo de color
+  if (key === 'v' || key === 'V') {
+    if (colorMode === 'gradient') colorMode = 'rainbow';
+    else if (colorMode === 'rainbow') colorMode = 'monochrome';
+    else colorMode = 'gradient';
+  }
+  
+  // Controles de parámetros
+  if (keyCode === UP_ARROW) amplitude = min(amplitude + 10, 150);
+  if (keyCode === DOWN_ARROW) amplitude = max(amplitude - 10, 20);
+  if (keyCode === RIGHT_ARROW) waveSpeed = min(waveSpeed + 0.005, 0.1);
+  if (keyCode === LEFT_ARROW) waveSpeed = max(waveSpeed - 0.005, 0.005);
+  
+  // Reiniciar
+  if (key === 'r' || key === 'R') {
+    time = 0;
+    amplitude = 80;
+    waveSpeed = 0.02;
+  }
+}
+
+// Interacción con mouse
+function mouseMoved() {
+  // Modificar frecuencia basada en posición del mouse
+  frequency = map(mouseX, 0, width, 0.01, 0.15);
+}
